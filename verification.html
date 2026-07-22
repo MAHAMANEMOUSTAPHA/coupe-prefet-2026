@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vérification Licence — Coupe du Préfet 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --vert-fonce:#0b3d2e; --vert:#0f4d38; --or:#c9a227; --or-clair:#e8c559;
+    --orange:#e07a1f; --blanc:#fdfdfb; --rouge:#8a1f11;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; padding:24px 16px;
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:radial-gradient(circle at 20% 10%, #124a37 0%, var(--vert-fonce) 55%, #082a20 100%);
+    color:#fff;
+  }
+  .liseret{ height:6px; background:linear-gradient(90deg, var(--orange), var(--blanc), var(--vert)); border-radius:3px; max-width:520px; margin:0 auto 20px; }
+  h1{ text-align:center; font-size:20px; max-width:520px; margin:0 auto 22px; letter-spacing:0.5px; }
+  h1 span{ color:var(--or-clair); }
+
+  .carte{
+    max-width:520px; margin:0 auto; background:#fff; color:#1c2b24;
+    border-radius:14px; overflow:hidden; border:1px solid rgba(201,162,39,0.5);
+    box-shadow:0 20px 50px rgba(0,0,0,0.35);
+  }
+  .entete{ background:linear-gradient(120deg, var(--vert-fonce), var(--vert)); color:#fff; padding:16px 20px; }
+  .entete .statut{
+    display:inline-block; padding:4px 12px; border-radius:999px; font-size:12px;
+    font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+  }
+  .statut.valide{ background:#1f7a4d; }
+  .statut.en_attente{ background:var(--orange); }
+  .statut.rejete{ background:var(--rouge); }
+
+  .corps{ padding:22px 20px; display:flex; gap:18px; align-items:center; }
+  .photo{ width:96px; height:96px; border-radius:8px; overflow:hidden; border:1px solid #e0e5e1; flex-shrink:0; background:#f3f5f3; }
+  .photo img{ width:100%; height:100%; object-fit:cover; }
+  .infos p{ margin:4px 0; font-size:14px; }
+  .infos b{ color:var(--vert-fonce); }
+
+  #chargement, #introuvable{ max-width:520px; margin:0 auto; text-align:center; color:#dfe9e3; }
+  #introuvable{ display:none; background:rgba(138,31,17,0.15); border:1px solid #c85f4d; padding:18px; border-radius:10px; }
+</style>
+</head>
+<body>
+  <div class="liseret"></div>
+  <h1>Vérification de <span>licence officielle</span><br>Coupe du Préfet — TGV 2026</h1>
+
+  <p id="chargement">Recherche de la licence en cours…</p>
+
+  <div class="carte" id="carte" style="display:none;">
+    <div class="entete">
+      <div style="font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--or-clair);">N° de licence</div>
+      <div style="font-size:20px; font-weight:800; margin-bottom:8px;" id="v-licence"></div>
+      <span class="statut" id="v-statut"></span>
+    </div>
+    <div class="corps">
+      <div class="photo"><img id="v-photo" src="" alt="Photo joueur"></div>
+      <div class="infos">
+        <p><b>Nom :</b> <span id="v-nom"></span></p>
+        <p><b>Né(e) le :</b> <span id="v-date"></span></p>
+        <p><b>Lieu :</b> <span id="v-lieu"></span></p>
+        <p><b>Club :</b> <span id="v-club"></span></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="introuvable">
+    Aucune licence ne correspond à ce code. Vérifiez le QR code ou contactez le comité de la Coupe du Préfet.
+  </div>
+
+<script>
+  const SUPABASE_URL = 'https://VOTRE-PROJET.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqZXFsYnZ1andiYWhpYmhudHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjIzMjcsImV4cCI6MjEwMDI5ODMyN30.nzBn9I7SjKe-0-f0XjtjARkXGRVQd13Q-Fr9ZOuOF0U';
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const params = new URLSearchParams(window.location.search);
+  const licence = params.get('licence');
+
+  const libellesStatut = { valide: 'Validée', en_attente: 'En attente', rejete: 'Rejetée' };
+
+  async function verifier(){
+    if (!licence){
+      document.getElementById('chargement').style.display = 'none';
+      document.getElementById('introuvable').style.display = 'block';
+      return;
+    }
+
+    const { data, error } = await client
+      .from('verification_publique')
+      .select('*')
+      .eq('n_licence', licence)
+      .single();
+
+    document.getElementById('chargement').style.display = 'none';
+
+    if (error || !data){
+      document.getElementById('introuvable').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('v-licence').textContent = data.n_licence;
+    document.getElementById('v-statut').textContent = libellesStatut[data.statut] || data.statut;
+    document.getElementById('v-statut').className = 'statut ' + data.statut;
+    document.getElementById('v-photo').src = data.photo_url || '';
+    document.getElementById('v-nom').textContent = data.nom_prenom;
+    document.getElementById('v-date').textContent = data.date_naissance;
+    document.getElementById('v-lieu').textContent = data.lieu_naissance;
+    document.getElementById('v-club').textContent = data.club || '—';
+
+    document.getElementById('carte').style.display = 'block';
+  }
+
+  verifier();
+</script>
+</body>
+</html>

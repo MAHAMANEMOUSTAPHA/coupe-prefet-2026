@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inscription Joueur — Coupe du Préfet 2026 | TGV Gaya</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --vert-fonce:#0b3d2e;
+    --vert:#0f4d38;
+    --or:#c9a227;
+    --or-clair:#e8c559;
+    --orange:#e07a1f;
+    --blanc:#fdfdfb;
+    --gris:#5a6b63;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:
+      radial-gradient(circle at 20% 10%, #124a37 0%, var(--vert-fonce) 55%, #082a20 100%);
+    color:var(--blanc);
+    min-height:100vh;
+    padding:24px 16px 60px;
+  }
+  .liseret{
+    height:6px;
+    background:linear-gradient(90deg, var(--orange), var(--blanc), var(--vert));
+    border-radius:3px;
+    max-width:640px;
+    margin:0 auto 18px;
+  }
+  header{
+    max-width:640px;
+    margin:0 auto 28px;
+    text-align:center;
+  }
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    background:rgba(201,162,39,0.15);
+    border:1px solid var(--or);
+    color:var(--or-clair);
+    padding:4px 14px;
+    border-radius:999px;
+    font-size:12px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  h1{
+    font-size:26px;
+    margin:6px 0 2px;
+    letter-spacing:0.5px;
+  }
+  h1 span{color:var(--or-clair);}
+  .sous-titre{
+    color:#bcd4c8;
+    font-size:14px;
+    margin:0;
+  }
+  form{
+    max-width:640px;
+    margin:0 auto;
+    background:var(--blanc);
+    color:#1c2b24;
+    border-radius:var(--radius);
+    padding:28px 26px 32px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.35);
+    border:1px solid rgba(201,162,39,0.4);
+  }
+  .champ{ margin-bottom:18px; }
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    color:var(--vert-fonce);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+  }
+  input[type=text], input[type=date], select{
+    width:100%;
+    padding:11px 13px;
+    border:1.5px solid #d8dfd9;
+    border-radius:8px;
+    font-size:15px;
+    background:#fbfbf8;
+    transition:border-color .15s;
+  }
+  input:focus, select:focus{
+    outline:none;
+    border-color:var(--or);
+    box-shadow:0 0 0 3px rgba(201,162,39,0.18);
+  }
+  .club-ligne{ display:flex; gap:8px; }
+  .club-ligne select{ flex:1; }
+  .club-ligne button{
+    white-space:nowrap;
+    background:var(--vert);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:0 14px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .photo-zone{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    border:2px dashed #cfd8d2;
+    border-radius:10px;
+    padding:14px;
+  }
+  .photo-apercu{
+    width:76px;
+    height:76px;
+    border-radius:8px;
+    background:#eef1ee;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    flex-shrink:0;
+    border:1px solid #d8dfd9;
+    font-size:11px;
+    color:var(--gris);
+    text-align:center;
+  }
+  .photo-apercu img{ width:100%; height:100%; object-fit:cover; }
+  input[type=file]{ font-size:13px; }
+  .btn-submit{
+    width:100%;
+    margin-top:8px;
+    padding:14px;
+    background:linear-gradient(90deg, var(--vert-fonce), var(--vert));
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    cursor:pointer;
+    box-shadow:0 8px 20px rgba(15,77,56,0.35);
+  }
+  .btn-submit:disabled{ opacity:0.6; cursor:wait; }
+  .message{
+    max-width:640px;
+    margin:16px auto 0;
+    padding:12px 16px;
+    border-radius:8px;
+    font-size:14px;
+    display:none;
+  }
+  .message.erreur{ background:#fdecea; color:#8a1f11; border:1px solid #f3b6ac; display:block; }
+
+  /* --- Résultat : mini-licence --- */
+  #resultat{ display:none; max-width:640px; margin:22px auto 0; }
+  .licence-carte{
+    background:#fff;
+    color:#1c2b24;
+    border-radius:var(--radius);
+    overflow:hidden;
+    border:1px solid rgba(201,162,39,0.5);
+    box-shadow:0 20px 50px rgba(0,0,0,0.35);
+  }
+  .licence-entete{
+    background:linear-gradient(120deg, var(--vert-fonce), var(--vert));
+    color:#fff;
+    padding:16px 20px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .licence-entete .titre{ font-size:13px; letter-spacing:1px; text-transform:uppercase; color:var(--or-clair); }
+  .licence-entete .n-licence{ font-size:20px; font-weight:800; }
+  .licence-corps{
+    padding:20px;
+    display:flex;
+    gap:18px;
+    align-items:center;
+  }
+  .licence-corps .photo{
+    width:90px; height:90px; border-radius:8px; overflow:hidden;
+    border:1px solid #e0e5e1; flex-shrink:0; background:#f3f5f3;
+  }
+  .licence-corps .photo img{ width:100%; height:100%; object-fit:cover; }
+  .licence-infos p{ margin:3px 0; font-size:14px; }
+  .licence-infos b{ color:var(--vert-fonce); }
+  .licence-qr{
+    padding:0 20px 20px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    border-top:1px dashed #e0e5e1;
+    margin-top:6px;
+    padding-top:16px;
+  }
+  .licence-qr small{ color:var(--gris); font-size:12px; line-height:1.4; }
+</style>
+</head>
+<body>
+
+  <div class="liseret"></div>
+  <header>
+    <div class="badge">★ Conseil Départemental de la Jeunesse de Gaya ★</div>
+    <h1>COUPE DU <span>PRÉFET</span> — TGV 2026</h1>
+    <p class="sous-titre">Formulaire officiel d'inscription joueur — 1ère édition</p>
+  </header>
+
+  <form id="form-inscription">
+    <div class="champ">
+      <label for="nom_prenom">Nom et prénom</label>
+      <input type="text" id="nom_prenom" required placeholder="Ex : Issoufou Abdou Sani">
+    </div>
+
+    <div class="champ">
+      <label for="date_naissance">Né(e) le</label>
+      <input type="date" id="date_naissance" required>
+    </div>
+
+    <div class="champ">
+      <label for="lieu_naissance">Lieu de naissance</label>
+      <input type="text" id="lieu_naissance" required placeholder="Ex : Gaya">
+    </div>
+
+    <div class="champ">
+      <label for="club">Club</label>
+      <div class="club-ligne">
+        <select id="club">
+          <option value="">— Choisir un club —</option>
+        </select>
+        <button type="button" id="btn-nouveau-club">+ Nouveau</button>
+      </div>
+    </div>
+
+    <div class="champ">
+      <label for="photo">Photo 4x4</label>
+      <div class="photo-zone">
+        <div class="photo-apercu" id="apercu">PHOTO<br>4x4</div>
+        <input type="file" id="photo" accept="image/*" required>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-submit" id="btn-submit">Générer ma licence officielle</button>
+  </form>
+
+  <div class="message erreur" id="msg-erreur"></div>
+
+  <div id="resultat">
+    <div class="licence-carte">
+      <div class="licence-entete">
+        <div>
+          <div class="titre">Licence officielle joueur</div>
+          <div>TGV — Coupe du Préfet 2026</div>
+        </div>
+        <div class="n-licence" id="r-licence"></div>
+      </div>
+      <div class="licence-corps">
+        <div class="photo"><img id="r-photo" src="" alt="Photo joueur"></div>
+        <div class="licence-infos">
+          <p><b>Nom :</b> <span id="r-nom"></span></p>
+          <p><b>Né(e) le :</b> <span id="r-date"></span></p>
+          <p><b>Lieu :</b> <span id="r-lieu"></span></p>
+          <p><b>Club :</b> <span id="r-club"></span></p>
+        </div>
+      </div>
+      <div class="licence-qr">
+        <div id="qrcode"></div>
+        <small>Scannez ce QR code pour vérifier l'authenticité<br>de la licence sur la page officielle du comité.</small>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ⚠️ Chef : remplacer par vos propres clés Supabase (mêmes principes que dogoneye-inscription)
+  const SUPABASE_URL = 'wjeqlbvujwbahibhntzo;
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqZXFsYnZ1andiYWhpYmhudHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjIzMjcsImV4cCI6MjEwMDI5ODMyN30.nzBn9I7SjKe-0-f0XjtjARkXGRVQd13Q-Fr9ZOuOF0U';
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // URL de la page de vérification publique (à adapter après déploiement Vercel)
+  const URL_VERIFICATION = 'https://coupe-prefet-gaya.vercel.app/verification.html';
+
+  const form = document.getElementById('form-inscription');
+  const btnSubmit = document.getElementById('btn-submit');
+  const msgErreur = document.getElementById('msg-erreur');
+  const selectClub = document.getElementById('club');
+  const inputPhoto = document.getElementById('photo');
+  const apercu = document.getElementById('apercu');
+
+  // Charger la liste des clubs existants
+  async function chargerClubs(){
+    const { data, error } = await client.from('clubs').select('id, nom').order('nom');
+    if (error) return;
+    selectClub.innerHTML = '<option value="">— Choisir un club —</option>' +
+      data.map(c => `<option value="${c.id}">${c.nom}</option>`).join('');
+  }
+  chargerClubs();
+
+  document.getElementById('btn-nouveau-club').addEventListener('click', async () => {
+    const nom = prompt('Nom du nouveau club :');
+    if (!nom) return;
+    const { data, error } = await client.from('clubs').insert({ nom }).select().single();
+    if (error){ alert("Erreur : " + error.message); return; }
+    await chargerClubs();
+    selectClub.value = data.id;
+  });
+
+  // Aperçu photo
+  inputPhoto.addEventListener('change', () => {
+    const fichier = inputPhoto.files[0];
+    if (!fichier) return;
+    const reader = new FileReader();
+    reader.onload = e => { apercu.innerHTML = `<img src="${e.target.result}">`; };
+    reader.readAsDataURL(fichier);
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msgErreur.style.display = 'none';
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'Traitement en cours...';
+
+    try {
+      const nom_prenom = document.getElementById('nom_prenom').value.trim();
+      const date_naissance = document.getElementById('date_naissance').value;
+      const lieu_naissance = document.getElementById('lieu_naissance').value.trim();
+      const club_id = selectClub.value || null;
+      const fichierPhoto = inputPhoto.files[0];
+
+      if (!fichierPhoto) throw new Error("Veuillez sélectionner une photo 4x4.");
+
+      // 1. Upload de la photo
+      const cheminPhoto = `${Date.now()}_${fichierPhoto.name}`;
+      const { error: erreurUpload } = await client.storage
+        .from('photos-joueurs')
+        .upload(cheminPhoto, fichierPhoto);
+      if (erreurUpload) throw new Error("Échec de l'upload photo : " + erreurUpload.message);
+
+      const { data: urlPublique } = client.storage
+        .from('photos-joueurs')
+        .getPublicUrl(cheminPhoto);
+
+      // 2. Insertion du joueur (n_licence généré automatiquement par le trigger SQL)
+      const { data: joueur, error: erreurInsert } = await client
+        .from('joueurs')
+        .insert({
+          nom_prenom,
+          date_naissance,
+          lieu_naissance,
+          club_id,
+          photo_url: urlPublique.publicUrl,
+          saison: '2026'
+        })
+        .select('n_licence')
+        .single();
+
+      if (erreurInsert) throw new Error("Échec de l'inscription : " + erreurInsert.message);
+
+      // 3. Affichage de la licence + QR code
+      document.getElementById('r-licence').textContent = joueur.n_licence;
+      document.getElementById('r-photo').src = urlPublique.publicUrl;
+      document.getElementById('r-nom').textContent = nom_prenom;
+      document.getElementById('r-date').textContent = date_naissance;
+      document.getElementById('r-lieu').textContent = lieu_naissance;
+      document.getElementById('r-club').textContent = selectClub.selectedOptions[0]?.text || '—';
+
+      document.getElementById('qrcode').innerHTML = '';
+      new QRCode(document.getElementById('qrcode'), {
+        text: `${URL_VERIFICATION}?licence=${joueur.n_licence}`,
+        width: 96,
+        height: 96
+      });
+
+      document.getElementById('resultat').style.display = 'block';
+      form.reset();
+      apercu.innerHTML = 'PHOTO<br>4x4';
+      form.scrollIntoView({ behavior: 'smooth' });
+
+    } catch (err) {
+      msgErreur.textContent = err.message;
+      msgErreur.style.display = 'block';
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Générer ma licence officielle';
+    }
+  });
+</script>
+</body>
+</html>
