@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Impression des licences — Coupe du Préfet 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --vert-fonce:#0b3d2e;
+    --vert:#0f4d38;
+    --or:#c9a227;
+    --or-clair:#e8c559;
+    --gris:#5a6b63;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:#e7ebe8;
+  }
+
+  /* ---------- Barre d'outils (masquée à l'impression) ---------- */
+  .barre-outils{
+    position:sticky; top:0; z-index:10;
+    background:var(--vert-fonce); color:#fff;
+    padding:14px 20px;
+    display:flex; flex-wrap:wrap; gap:12px; align-items:center;
+    box-shadow:0 4px 10px rgba(0,0,0,0.25);
+  }
+  .barre-outils h1{ font-size:16px; margin:0; margin-right:auto; }
+  .barre-outils select, .barre-outils button{
+    font-size:13px; padding:8px 14px; border-radius:8px; border:none; cursor:pointer;
+  }
+  .barre-outils select{ background:#fff; color:#1c2b24; }
+  .barre-outils button{ background:var(--or); color:#1c2b24; font-weight:700; }
+  #statut-chargement{ font-size:13px; color:var(--or-clair); }
+
+  /* ---------- Pages A4 ---------- */
+  .feuille{
+    width:210mm;
+    min-height:297mm;
+    margin:14px auto;
+    background:#fff;
+    box-shadow:0 0 12px rgba(0,0,0,0.25);
+    padding:10mm;
+    display:grid;
+    grid-template-columns: repeat(2, 90mm);
+    grid-template-rows: repeat(4, 55mm);
+    gap:6mm 10mm;
+    justify-content:center;
+    align-content:start;
+  }
+
+  /* ---------- Carte licence, format recto 90 x 55 mm ---------- */
+  .carte-impr{
+    width:90mm; height:55mm;
+    border:0.4mm dashed #b7c2bc; /* repère de découpe */
+    border-radius:2.5mm;
+    overflow:hidden;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    background:#fff;
+  }
+  .carte-impr::before{
+    content:"TGV 2026 • GAYA • TGV 2026 • GAYA •";
+    position:absolute; inset:0; z-index:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:7pt; font-weight:800; letter-spacing:1pt;
+    color:rgba(15,77,56,0.07); line-height:2.2; word-spacing:5pt;
+    transform:rotate(-18deg) scale(1.5);
+    pointer-events:none; overflow:hidden; text-align:center; white-space:pre-wrap;
+  }
+  .entete-impr{
+    position:relative; z-index:1;
+    background:linear-gradient(120deg, var(--vert-fonce), var(--vert));
+    color:#fff;
+    padding:2mm 3mm;
+    display:flex; align-items:center; gap:2mm;
+  }
+  .entete-impr img{ width:9mm; height:9mm; object-fit:contain; flex-shrink:0; }
+  .entete-impr .petit{ font-size:6pt; letter-spacing:0.4pt; text-transform:uppercase; color:var(--or-clair); }
+  .entete-impr .nomcoupe{ font-size:6.5pt; line-height:1.15; }
+  .entete-impr .num{ margin-left:auto; font-size:9pt; font-weight:800; white-space:nowrap; }
+
+  .corps-impr{
+    position:relative; z-index:1;
+    flex:1;
+    display:flex; gap:2.5mm;
+    padding:2.5mm 3mm;
+    align-items:center;
+  }
+  .photo-impr{
+    width:16mm; height:16mm; border-radius:1.5mm;
+    object-fit:cover; flex-shrink:0; border:0.3mm solid #dfe4e0; background:#eef1ee;
+  }
+  .infos-impr{ font-size:6.6pt; line-height:1.55; color:#1c2b24; flex:1; }
+  .infos-impr b{ color:var(--vert-fonce); }
+  .qr-impr{ flex-shrink:0; }
+  .qr-impr img, .qr-impr canvas{ width:14mm !important; height:14mm !important; }
+
+  @media print{
+    body{ background:#fff; }
+    .barre-outils{ display:none; }
+    .feuille{ margin:0; box-shadow:none; page-break-after:always; }
+    .feuille:last-child{ page-break-after:auto; }
+    .carte-impr{ border-style:dashed; } /* garder les repères de découpe à l'impression */
+  }
+  @page{ size:A4; margin:0; }
+</style>
+</head>
+<body>
+
+  <div class="barre-outils no-print">
+    <h1>Impression des licences — TGV 2026</h1>
+    <select id="filtre-statut">
+      <option value="valide">Joueurs validés uniquement</option>
+      <option value="tous">Tous les joueurs</option>
+    </select>
+    <span id="statut-chargement">Chargement…</span>
+    <button id="btn-imprimer">🖨️ Imprimer</button>
+  </div>
+
+  <div id="conteneur-feuilles"></div>
+
+<script>
+  // ⚠️ Chef : mêmes clés que inscription.html / verification.html
+  const SUPABASE_URL = 'https://wjeqlbvujwbahibhntzo.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqZXFsYnZ1andiYWhpYmhudHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjIzMjcsImV4cCI6MjEwMDI5ODMyN30.nzBn9I7SjKe-0-f0XjtjARkXGRVQd13Q-Fr9ZOuOF0U';
+
+  const URL_VERIFICATION = 'https://coupe-prefet-2026.vercel.app/verification.html';
+  const CARTES_PAR_PAGE = 8;
+
+  const conteneur = document.getElementById('conteneur-feuilles');
+  const statutChargement = document.getElementById('statut-chargement');
+  const filtreStatut = document.getElementById('filtre-statut');
+
+  function decoupeEnPages(liste, taille){
+    const pages = [];
+    for (let i = 0; i < liste.length; i += taille){
+      pages.push(liste.slice(i, i + taille));
+    }
+    return pages;
+  }
+
+  function creerCarte(joueur){
+    const div = document.createElement('div');
+    div.className = 'carte-impr';
+    div.innerHTML = `
+      <div class="entete-impr">
+        <img src="logo-tgv.png" alt="Logo TGV" onerror="this.style.display='none'">
+        <div>
+          <div class="petit">Licence officielle joueur</div>
+          <div class="nomcoupe">TGV — Coupe du Préfet 2026</div>
+        </div>
+        <div class="num">${joueur.n_licence}</div>
+      </div>
+      <div class="corps-impr">
+        <img class="photo-impr" src="${joueur.photo_url || ''}" alt="Photo">
+        <div class="infos-impr">
+          <div><b>${joueur.nom_prenom}</b></div>
+          <div>Né(e) le : ${joueur.date_naissance}</div>
+          <div>Lieu : ${joueur.lieu_naissance}</div>
+          <div>Club : ${joueur.club || '—'}</div>
+        </div>
+        <div class="qr-impr" id="qr-${joueur.n_licence}"></div>
+      </div>
+    `;
+    return div;
+  }
+
+  async function chargerEtAfficher(){
+    statutChargement.textContent = 'Chargement…';
+    conteneur.innerHTML = '';
+
+    let requete = client.from('verification_publique').select('*').order('n_licence');
+    if (filtreStatut.value === 'valide') {
+      requete = requete.eq('statut', 'valide');
+    }
+
+    const { data, error } = await requete;
+
+    if (error){
+      statutChargement.textContent = 'Erreur : ' + error.message;
+      return;
+    }
+    if (!data || data.length === 0){
+      statutChargement.textContent = 'Aucun joueur trouvé pour ce filtre.';
+      return;
+    }
+
+    const pages = decoupeEnPages(data, CARTES_PAR_PAGE);
+
+    pages.forEach(groupe => {
+      const feuille = document.createElement('div');
+      feuille.className = 'feuille';
+      groupe.forEach(joueur => feuille.appendChild(creerCarte(joueur)));
+      conteneur.appendChild(feuille);
+    });
+
+    // Génération des QR codes après insertion dans le DOM
+    data.forEach(joueur => {
+      const cible = document.getElementById('qr-' + joueur.n_licence);
+      if (cible){
+        new QRCode(cible, {
+          text: `${URL_VERIFICATION}?licence=${joueur.n_licence}`,
+          width: 90,
+          height: 90,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    });
+
+    statutChargement.textContent = `${data.length} licence(s) — ${pages.length} feuille(s) A4`;
+  }
+
+  filtreStatut.addEventListener('change', chargerEtAfficher);
+  document.getElementById('btn-imprimer').addEventListener('click', () => window.print());
+
+  chargerEtAfficher();
+</script>
+</body>
+</html>
