@@ -169,7 +169,30 @@
     overflow:hidden;
     border:1px solid rgba(201,162,39,0.5);
     box-shadow:0 20px 50px rgba(0,0,0,0.35);
+    position:relative;
   }
+  /* Filigrane : texte répété en fond, façon document officiel */
+  .licence-carte::before{
+    content:"TGV 2026 • COUPE DU PRÉFET • GAYA • TGV 2026 • COUPE DU PRÉFET • GAYA •";
+    position:absolute;
+    inset:0;
+    z-index:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:13px;
+    font-weight:800;
+    letter-spacing:2px;
+    color:rgba(15,77,56,0.06);
+    line-height:2.6;
+    word-spacing:8px;
+    transform:rotate(-18deg) scale(1.4);
+    pointer-events:none;
+    overflow:hidden;
+    text-align:center;
+    white-space:pre-wrap;
+  }
+  .licence-entete, .licence-corps, .licence-qr{ position:relative; z-index:1; }
   .licence-entete{
     background:linear-gradient(120deg, var(--vert-fonce), var(--vert));
     color:#fff;
@@ -178,6 +201,8 @@
     justify-content:space-between;
     align-items:center;
   }
+  .licence-entete .entete-gauche{ display:flex; align-items:center; gap:10px; }
+  .licence-entete .logo-tgv{ width:64px; height:64px; object-fit:contain; flex-shrink:0; }
   .licence-entete .titre{ font-size:13px; letter-spacing:1px; text-transform:uppercase; color:var(--or-clair); }
   .licence-entete .n-licence{ font-size:20px; font-weight:800; }
   .licence-corps{
@@ -233,7 +258,7 @@
     <div class="champ">
       <label for="club">Club</label>
       <div class="club-ligne">
-        <select id="club">
+        <select id="club" required>
           <option value="">— Choisir un club —</option>
         </select>
         <button type="button" id="btn-nouveau-club">+ Nouveau</button>
@@ -256,9 +281,12 @@
   <div id="resultat">
     <div class="licence-carte">
       <div class="licence-entete">
-        <div>
-          <div class="titre">Licence officielle joueur</div>
-          <div>TGV — Coupe du Préfet 2026</div>
+        <div class="entete-gauche">
+          <img class="logo-tgv" src="logo-tgv.png" alt="Logo TGV" onerror="this.style.display='none'">
+          <div>
+            <div class="titre">Licence officielle joueur</div>
+            <div>TGV — Coupe du Préfet 2026</div>
+          </div>
         </div>
         <div class="n-licence" id="r-licence"></div>
       </div>
@@ -279,7 +307,7 @@
   </div>
 
 <script>
-  // ⚠️ Chef : remplacer par vos propres clés Supabase (mêmes principes que dogoneye-inscription)
+// ⚠️ Chef : remplacer par vos propres clés Supabase (mêmes principes que dogoneye-inscription)
   const SUPABASE_URL = 'https://wjeqlbvujwbahibhntzo.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqZXFsYnZ1andiYWhpYmhudHpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MjIzMjcsImV4cCI6MjEwMDI5ODMyN30.nzBn9I7SjKe-0-f0XjtjARkXGRVQd13Q-Fr9ZOuOF0U';
   const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -331,9 +359,10 @@
       const nom_prenom = document.getElementById('nom_prenom').value.trim();
       const date_naissance = document.getElementById('date_naissance').value;
       const lieu_naissance = document.getElementById('lieu_naissance').value.trim();
-      const club_id = selectClub.value || null;
+      const club_id = selectClub.value;
       const fichierPhoto = inputPhoto.files[0];
 
+      if (!club_id) throw new Error("Veuillez choisir un club.");
       if (!fichierPhoto) throw new Error("Veuillez sélectionner une photo 4x4.");
 
       // 1. Upload de la photo
